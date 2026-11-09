@@ -1,151 +1,210 @@
 
 import 'package:flutter/material.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 
 void main() {
-  runApp(const TodoListApp());
+  runApp(const MyApp());
 }
 
-class TodoListApp extends StatelessWidget {
-  const TodoListApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: TodoListPage(),
+      title: 'To Do List',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: false,
+      ),
+      home: const TodoPage(),
     );
   }
 }
 
-class TodoListPage extends StatefulWidget {
-  const TodoListPage({super.key});
+// Clase para representar una tarea
+class Tarea {
+  int id;
+  String nombre;
 
-  @override
-  State<TodoListPage> createState() => _TodoListPageState();
+  Tarea({
+    required this.id,
+    required this.nombre,
+  });
 }
 
-class _TodoListPageState extends State<TodoListPage> {
-  final TextEditingController controller = TextEditingController();
+class TodoPage extends StatefulWidget {
+  const TodoPage({super.key});
 
-  final List<String> tareas = [
-    'tarea5',
-    'tarea1',
-    'tarea4',
-    'tarea2',
-    'tarea3',
+  @override
+  State<TodoPage> createState() => _TodoPageState();
+}
+
+class _TodoPageState extends State<TodoPage> {
+
+  final TextEditingController controlador = TextEditingController();
+
+  int siguienteId = 6;
+
+  List<Tarea> tareas = [
+    Tarea(id: 1, nombre: 'tarea5'),
+    Tarea(id: 2, nombre: 'tarea1'),
+    Tarea(id: 3, nombre: 'tarea4'),
+    Tarea(id: 4, nombre: 'tarea2'),
+    Tarea(id: 5, nombre: 'tarea3'),
   ];
 
   // Agregar una tarea
   void agregarTarea() {
-    final texto = controller.text.trim();
+    String nombre = controlador.text.trim();
 
-    if (texto.isEmpty) return;
+    if (nombre.isEmpty) return;
 
     setState(() {
-      tareas.add(texto);
-      controller.clear();
+      tareas.add(
+        Tarea(
+          id: siguienteId++,
+          nombre: nombre,
+        ),
+      );
     });
+
+    controlador.clear();
   }
 
   // Editar una tarea
-  void editarTarea(int index) {
+  Future<void> editarTarea(int index) async {
     final TextEditingController editarController =
-        TextEditingController(text: tareas[index]);
+        TextEditingController(text: tareas[index].nombre);
 
-    showDialog(
+    final resultado = await showDialog<String>(
       context: context,
-      builder: (dialogContext) {
+      builder: (context) {
         return AlertDialog(
           title: const Text('Editar tarea'),
           content: TextField(
             controller: editarController,
             autofocus: true,
             decoration: const InputDecoration(
-              labelText: 'Nombre de la tarea',
-              border: OutlineInputBorder(),
+              hintText: 'Nombre de la tarea',
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
               onPressed: () {
-                final texto = editarController.text.trim();
-
-                if (texto.isEmpty) return;
-
-                setState(() {
-                  tareas[index] = texto;
-                });
-
-                Navigator.pop(dialogContext);
+                Navigator.pop(
+                  context,
+                  editarController.text.trim(),
+                );
               },
               child: const Text('Guardar'),
             ),
           ],
         );
       },
-    ).then((_) => editarController.dispose());
+    );
+
+    if (resultado != null && resultado.isNotEmpty) {
+      setState(() {
+        tareas[index].nombre = resultado;
+      });
+    }
+
+    editarController.dispose();
   }
 
   // Eliminar una tarea
-  void eliminarTarea(int index) {
-    final String tareaEliminada = tareas[index];
-
-    setState(() {
-      tareas.removeAt(index);
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$tareaEliminada eliminada'),
-        action: SnackBarAction(
-          label: 'Deshacer',
-          onPressed: () {
-            setState(() {
-              tareas.insert(
-                index.clamp(0, tareas.length),
-                tareaEliminada,
-              );
-            });
+  Future<bool> eliminarTarea(int index) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Eliminar tarea'),
+              content: const Text(
+                '¿Estás seguro de eliminar esta tarea?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Eliminar'),
+                ),
+              ],
+            );
           },
-        ),
-      ),
-    );
+        ) ??
+        false;
+  }
+
+  // Cambiar el orden de las tareas
+  void reordenarTareas(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex--;
+      }
+
+      final tarea = tareas.removeAt(oldIndex);
+      tareas.insert(newIndex, tarea);
+    });
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    controlador.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFE9EDF4),
+      backgroundColor: const Color(0xFFF5F5F5),
+
       body: SafeArea(
         child: Center(
           child: Container(
-            margin: const EdgeInsets.all(12),
-            constraints: const BoxConstraints(maxWidth: 420),
-            color: Colors.white,
+            width: 500,
+            margin: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(
+                color: Colors.grey.shade300,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.12),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+
             child: Column(
               children: [
-                // Encabezado
+
+                // Título
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.20),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
+                        color: Colors.black.withOpacity(0.18),
+                        blurRadius: 5,
+                        offset: const Offset(0, 3),
                       ),
                     ],
                   ),
@@ -153,158 +212,171 @@ class _TodoListPageState extends State<TodoListPage> {
                     'To Do List',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 20,
-                      color: Color(0xFF666666),
+                      fontSize: 26,
+                      color: Colors.black54,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),
 
-                // Campo de texto y botón para agregar
+                // Campo para agregar tareas
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
+
                       Expanded(
                         child: TextField(
-                          controller: controller,
+                          controller: controlador,
                           onSubmitted: (_) => agregarTarea(),
                           decoration: const InputDecoration(
                             hintText: 'Ingresa una tarea...',
-                            hintStyle: TextStyle(
-                              color: Color(0xFF888888),
-                              fontSize: 14,
-                            ),
                             border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
-                              vertical: 10,
-                            ),
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
+
+                      const SizedBox(width: 10),
+
                       SizedBox(
-                        width: 44,
-                        height: 34,
+                        width: 42,
+                        height: 38,
                         child: ElevatedButton(
                           onPressed: agregarTarea,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF80A9F5),
-                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF80A9F0),
                             padding: EdgeInsets.zero,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(5),
                             ),
-                            elevation: 2,
                           ),
-                          child: const Icon(Icons.add, size: 23),
+                          child: const Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 25,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
 
-                const Divider(
+                Divider(
                   height: 1,
-                  indent: 16,
-                  endIndent: 16,
-                  color: Color(0xFFE5E5E5),
+                  color: Colors.grey.shade300,
                 ),
 
                 // Lista de tareas
                 Expanded(
-                  child: tareas.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No hay tareas',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                      : ReorderableListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                          ),
-                          itemCount: tareas.length,
-                          onReorder: (oldIndex, newIndex) {
-                            setState(() {
-                              if (newIndex > oldIndex) {
-                                newIndex--;
-                              }
+                  child: ReorderableListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                    ),
+                    itemCount: tareas.length,
+                    onReorder: reordenarTareas,
 
-                              final tarea = tareas.removeAt(oldIndex);
-                              tareas.insert(newIndex, tarea);
-                            });
-                          },
-                          itemBuilder: (context, index) {
-                            final tarea = tareas[index];
+                    itemBuilder: (context, index) {
 
-                            return Slidable(
-                              key: ValueKey(tarea),
-                              endActionPane: ActionPane(
-                                motion: const BehindMotion(),
-                                extentRatio: 0.48,
-                                children: [
-                                  SlidableAction(
-                                    onPressed: (_) => editarTarea(index),
-                                    backgroundColor:
-                                        const Color(0xFF80A9F5),
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.edit,
-                                    label: 'Editar',
-                                  ),
-                                  SlidableAction(
-                                    onPressed: (_) => eliminarTarea(index),
-                                    backgroundColor:
-                                        const Color(0xFFE05252),
-                                    foregroundColor: Colors.white,
-                                    icon: Icons.delete,
-                                    label: 'Borrar',
-                                  ),
-                                ],
+                      final tarea = tareas[index];
+
+                      return Dismissible(
+                        key: ValueKey(tarea.id),
+
+                        direction: DismissDirection.horizontal,
+
+                        // Deslizar a la derecha: editar
+                        // Deslizar a la izquierda: eliminar
+                        confirmDismiss: (direction) async {
+
+                          if (direction ==
+                              DismissDirection.startToEnd) {
+
+                            await editarTarea(index);
+                            return false;
+                          }
+
+                          if (direction ==
+                              DismissDirection.endToStart) {
+
+                            return await eliminarTarea(index);
+                          }
+
+                          return false;
+                        },
+
+                        background: Container(
+                          color: Colors.blue,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.only(left: 20),
+                          child: const Icon(
+                            Icons.edit,
+                            color: Colors.white,
+                          ),
+                        ),
+
+                        secondaryBackground: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(
+                            Icons.delete,
+                            color: Colors.white,
+                          ),
+                        ),
+
+                        onDismissed: (_) {
+                          setState(() {
+                            tareas.removeWhere(
+                              (element) => element.id == tarea.id,
+                            );
+                          });
+                        },
+
+                        child: Container(
+                          height: 66,
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade300,
+                                width: 1,
                               ),
-                              child: Container(
-                                color: Colors.white,
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                      height: 42,
-                                      child: Row(
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              tarea,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                          ReorderableDragStartListener(
-                                            index: index,
-                                            child: const Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: 6,
-                                              ),
-                                              child: Icon(
-                                                Icons.drag_handle,
-                                                color: Color(0xFFAAAAAA),
-                                                size: 25,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const Divider(
-                                      height: 1,
-                                      color: Color(0xFFE8E8E8),
-                                    ),
-                                  ],
+                            ),
+                          ),
+
+                          child: Row(
+                            children: [
+
+                              Expanded(
+                                child: Text(
+                                  tarea.nombre,
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                            );
-                          },
+
+                              // Control para reordenar
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.grey,
+                                    size: 30,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
